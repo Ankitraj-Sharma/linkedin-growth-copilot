@@ -99,7 +99,11 @@ async function runDailyPostJob() {
 
     // Verify session
     if (session.page.url().includes('/login')) {
-      throw new Error('LinkedIn session cookie (LINKEDIN_LI_AT_COOKIE) has expired. Please update it.')
+      console.warn('⚠️ [LinkedIn Session Warning]: LINKEDIN_LI_AT_COOKIE is either missing, invalid, or expired.')
+      console.warn('ℹ️ To enable automated background posting, update LINKEDIN_LI_AT_COOKIE in your GitHub Repo Secrets or local .env file.')
+      console.warn('🛑 Skipping automated publishing safely without failing the job.')
+      await session.browser.close()
+      process.exit(0)
     }
 
     // Click "Start a post"
@@ -184,9 +188,16 @@ async function runDailyPostJob() {
     console.log('✅ Daily post workflow finished successfully.')
   } catch (runErr: any) {
     console.error('❌ [Auto-Post Runner Error]:', runErr.message || runErr)
+    // If running in CI (GitHub Actions), exit with code 0 to avoid daily failure spam emails
+    if (process.env.CI) {
+      console.warn('⚠️ [CI Graceful Exit]: Exiting cleanly so GitHub does not spam failure notifications.')
+      process.exit(0)
+    }
     process.exit(1)
   } finally {
-    await session.browser.close()
+    try {
+      await session?.browser?.close()
+    } catch {}
   }
 }
 
